@@ -1,10 +1,18 @@
 package migrations
 
 import (
+	"log"
 	"time"
 
 	"gorm.io/gorm"
+	"socialpredict/migration"
 )
+
+func init() {
+	if err := migration.Register("20260131_ai_agents", Migration20260131AIAgents); err != nil {
+		log.Fatalf("Failed to register migration 20260131_ai_agents: %v", err)
+	}
+}
 
 // Agent model for migration
 type Agent struct {
