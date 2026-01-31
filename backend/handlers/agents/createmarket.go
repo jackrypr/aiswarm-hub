@@ -105,26 +105,28 @@ func CreateMarketHandler(db *gorm.DB) http.HandlerFunc {
 		agentUsername := fmt.Sprintf("agent:%s", agent.Name)
 
 		// Create agent user if not exists (needed for FK constraint)
-		// Use raw SQL to ensure it works
 		displayName := fmt.Sprintf("%s AI Agent", agent.Name)
-		agentEmail := fmt.Sprintf("agent-%d@binkaroni.local", agent.ID)
+		agentEmail := fmt.Sprintf("agent-%d-%d@binkaroni.local", agent.ID, time.Now().UnixNano())
 		
-		// Insert user using raw SQL with ON CONFLICT DO NOTHING
-		// GORM uses snake_case column names
-		insertSQL := `INSERT INTO users (username, display_name, user_type, email, password, account_balance, personal_emoji, must_change_password, created_at, updated_at) 
-			VALUES ($1, $2, 'AGENT', $3, 'AGENT_NO_LOGIN', 0, '🤖', false, NOW(), NOW()) 
-			ON CONFLICT (username) DO NOTHING`
+		// First check if user already exists
+		var existingUser models.User
+		userExists := db.Where("username = ?", agentUsername).First(&existingUser).Error == nil
 		
-		if err := db.Exec(insertSQL, agentUsername, displayName, agentEmail).Error; err != nil {
-			http.Error(w, fmt.Sprintf("Failed to create agent user via SQL: %s", err.Error()), http.StatusInternalServerError)
-			return
-		}
-		
-		// Verify user exists
-		var verifyUser models.User
-		if err := db.Where("username = ?", agentUsername).First(&verifyUser).Error; err != nil {
-			http.Error(w, fmt.Sprintf("User not found after insert: %s (username: %s)", err.Error(), agentUsername), http.StatusInternalServerError)
-			return
+		if !userExists {
+			// Insert user using raw SQL
+			insertSQL := `INSERT INTO users (username, display_name, user_type, email, password, account_balance, personal_emoji, must_change_password, created_at, updated_at) 
+				VALUES ($1, $2, 'AGENT', $3, 'AGENT_NO_LOGIN', 0, '🤖', false, NOW(), NOW())`
+			
+			if err := db.Exec(insertSQL, agentUsername, displayName, agentEmail).Error; err != nil {
+				http.Error(w, fmt.Sprintf("Failed to create agent user: %s (username: %s, email: %s)", err.Error(), agentUsername, agentEmail), http.StatusInternalServerError)
+				return
+			}
+			
+			// Verify user was created
+			if db.Where("username = ?", agentUsername).First(&existingUser).Error != nil {
+				http.Error(w, fmt.Sprintf("User not found after insert - username: %s", agentUsername), http.StatusInternalServerError)
+				return
+			}
 		}
 
 		// Create the market
