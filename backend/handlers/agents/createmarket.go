@@ -110,8 +110,9 @@ func CreateMarketHandler(db *gorm.DB) http.HandlerFunc {
 		agentEmail := fmt.Sprintf("agent-%d@binkaroni.local", agent.ID)
 		
 		// Insert user using raw SQL with ON CONFLICT DO NOTHING
-		insertSQL := `INSERT INTO users (username, displayname, user_type, email, password, account_balance, personal_emoji, must_change_password, created_at, updated_at) 
-			VALUES (?, ?, 'AGENT', ?, 'AGENT_NO_LOGIN', 0, '🤖', false, NOW(), NOW()) 
+		// GORM uses snake_case column names
+		insertSQL := `INSERT INTO users (username, display_name, user_type, email, password, account_balance, personal_emoji, must_change_password, created_at, updated_at) 
+			VALUES ($1, $2, 'AGENT', $3, 'AGENT_NO_LOGIN', 0, '🤖', false, NOW(), NOW()) 
 			ON CONFLICT (username) DO NOTHING`
 		
 		if err := db.Exec(insertSQL, agentUsername, displayName, agentEmail).Error; err != nil {
