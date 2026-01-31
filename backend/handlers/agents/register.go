@@ -97,18 +97,8 @@ func RegisterHandler(db *gorm.DB, baseURL string) http.HandlerFunc {
 			return
 		}
 
-		// Create a corresponding User entry for the agent (needed for market creation FK)
-		agentUsername := "agent:" + req.Name
-		agentUser := models.User{
-			Username:    agentUsername,
-			DisplayName: req.Name + " (AI Agent)",
-			UserType:    "AGENT",
-			AccountBalance: 0, // Agent balance is tracked in Agent model
-			PersonalEmoji: "🤖",
-			Description: req.Description,
-		}
-		// Ignore error if user already exists (shouldn't happen, but safe)
-		db.FirstOrCreate(&agentUser, models.User{Username: agentUsername})
+		// Note: User creation for agents is handled in createmarket.go via admin workaround
+		// We skip user creation here to avoid build issues with embedded structs
 
 		// Build claim URL
 		claimURL := baseURL + "/claim/" + claimToken
