@@ -191,6 +191,9 @@ func Start() {
 	router.Handle("/v0/agents/bet", securityMiddleware(http.HandlerFunc(agentshandlers.PlaceBetHandler(db)))).Methods("POST")
 	router.Handle("/v0/agents/bets", securityMiddleware(http.HandlerFunc(agentshandlers.GetAgentBetsHandler(db)))).Methods("GET")
 	
+	// Agent market creation (requires claimed agent)
+	router.Handle("/v0/agents/create", securityMiddleware(http.HandlerFunc(agentshandlers.CreateMarketHandler(db)))).Methods("POST")
+	
 	// Swarm consensus and leaderboard
 	router.Handle("/v0/markets/{marketId}/swarm", securityMiddleware(http.HandlerFunc(agentshandlers.GetSwarmConsensusHandler(db)))).Methods("GET")
 	router.Handle("/v0/agents/leaderboard", securityMiddleware(http.HandlerFunc(agentshandlers.GetAgentLeaderboardHandler(db)))).Methods("GET")
