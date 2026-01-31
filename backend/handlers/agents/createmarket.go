@@ -104,47 +104,34 @@ func CreateMarketHandler(db *gorm.DB) http.HandlerFunc {
 		// Agent username is "agent:<name>"
 		agentUsername := fmt.Sprintf("agent:%s", agent.Name)
 
-		// Use a transaction to ensure atomicity
-		tx := db.Begin()
-		defer func() {
-			if r := recover(); r != nil {
-				tx.Rollback()
-			}
-		}()
-
-		// Ensure agent user exists (for FK constraint)
-		var agentUser models.User
-		findResult := tx.Where("username = ?", agentUsername).First(&agentUser)
-		if findResult.Error != nil {
-			// Create user entry for agent if it doesn't exist
-			displayName := fmt.Sprintf("%s (AI)", agent.Name)
-			// Generate unique email for agent (won't be used)
-			agentEmail := fmt.Sprintf("%s@agent.binkaroni.ai", strings.ToLower(strings.ReplaceAll(agent.Name, " ", "-")))
-			
-			agentUser = models.User{
-				Username:           agentUsername,
-				DisplayName:        displayName,
-				UserType:           "AGENT",
-				AccountBalance:     0,
-				PersonalEmoji:      "🤖",
-				Description:        agent.Description,
-				MustChangePassword: false,
-			}
-			// Set PrivateUser fields (Email and Password are NOT NULL in schema)
-			agentUser.Email = agentEmail
-			agentUser.Password = "AGENT_NO_LOGIN" // Agents don't login with password
-			
-			createResult := tx.Create(&agentUser)
-			if createResult.Error != nil {
-				// If display name conflict, try with unique suffix
-				agentUser.DisplayName = fmt.Sprintf("%s (AI %d)", agent.Name, time.Now().Unix())
-				createResult = tx.Create(&agentUser)
-				if createResult.Error != nil {
-					tx.Rollback()
-					http.Error(w, fmt.Sprintf("Failed to create agent user (username=%s): %s", agentUsername, createResult.Error.Error()), http.StatusInternalServerError)
-					return
-				}
-			}
+		// Create agent user if not exists (needed for FK constraint)
+		displayName := fmt.Sprintf("%s AI Agent", agent.Name)
+		agentEmail := fmt.Sprintf("agent-%d@binkaroni.local", agent.ID)
+		
+		agentUser := models.User{
+			Username:           agentUsername,
+			DisplayName:        displayName,
+			UserType:           "AGENT",
+			AccountBalance:     0,
+			PersonalEmoji:      "🤖",
+			Description:        agent.Description,
+			MustChangePassword: false,
+			Email:              agentEmail,
+			Password:           "AGENT_NO_PASSWORD_LOGIN",
+		}
+		
+		// Use FirstOrCreate - creates if not exists, finds if exists
+		userResult := db.Where("username = ?", agentUsername).FirstOrCreate(&agentUser)
+		if userResult.Error != nil {
+			http.Error(w, fmt.Sprintf("Failed to ensure agent user exists: %s", userResult.Error.Error()), http.StatusInternalServerError)
+			return
+		}
+		
+		// Verify user was created/found
+		var verifyUser models.User
+		if db.Where("username = ?", agentUsername).First(&verifyUser).Error != nil {
+			http.Error(w, fmt.Sprintf("User verification failed for: %s", agentUsername), http.StatusInternalServerError)
+			return
 		}
 
 		// Create the market
@@ -157,16 +144,9 @@ func CreateMarketHandler(db *gorm.DB) http.HandlerFunc {
 			CreatorUsername:    agentUsername,
 		}
 
-		marketResult := tx.Create(&newMarket)
+		marketResult := db.Create(&newMarket)
 		if marketResult.Error != nil {
-			tx.Rollback()
 			http.Error(w, "Error creating market: "+marketResult.Error.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		// Commit the transaction
-		if err := tx.Commit().Error; err != nil {
-			http.Error(w, "Error committing transaction: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 
