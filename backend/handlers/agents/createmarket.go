@@ -106,21 +106,31 @@ func CreateMarketHandler(db *gorm.DB) http.HandlerFunc {
 
 		// Ensure agent user exists (for FK constraint)
 		var agentUser models.User
-		result := db.Where("username = ?", agentUsername).First(&agentUser)
-		if result.Error != nil {
+		findResult := db.Where("username = ?", agentUsername).First(&agentUser)
+		if findResult.Error != nil {
 			// Create user entry for agent if it doesn't exist
+			// Use unique display name with timestamp to avoid conflicts
+			displayName := fmt.Sprintf("%s (AI)", agent.Name)
+			
 			agentUser = models.User{
-				Username:       agentUsername,
-				DisplayName:    agent.Name + " AI Agent",  // Simplified to avoid uniqueness issues
-				UserType:       "AGENT",
-				AccountBalance: 0,
-				PersonalEmoji:  "🤖",
-				Description:    agent.Description,
-				MustChangePassword: false, // Agents don't have passwords
+				Username:           agentUsername,
+				DisplayName:        displayName,
+				UserType:           "AGENT",
+				AccountBalance:     0,
+				PersonalEmoji:      "🤖",
+				Description:        agent.Description,
+				MustChangePassword: false,
 			}
-			if createErr := db.Create(&agentUser).Error; createErr != nil {
-				http.Error(w, "Failed to create agent user: "+createErr.Error(), http.StatusInternalServerError)
-				return
+			
+			createResult := db.Create(&agentUser)
+			if createResult.Error != nil {
+				// If display name conflict, try with unique suffix
+				agentUser.DisplayName = fmt.Sprintf("%s (AI %d)", agent.Name, time.Now().Unix())
+				createResult = db.Create(&agentUser)
+				if createResult.Error != nil {
+					http.Error(w, fmt.Sprintf("Failed to create agent user (username=%s): %s", agentUsername, createResult.Error.Error()), http.StatusInternalServerError)
+					return
+				}
 			}
 		}
 		
