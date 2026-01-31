@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  db:
+    container_name: aiswarm-postgres
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: swarm_user
+      POSTGRES_PASSWORD: swarm_pass_2026
+      POSTGRES_DB: aiswarm_db
+    volumes:
+      - aiswarm_pgdata:/var/lib/postgresql/data
+    networks:
+      - aiswarm_network
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U swarm_user -d aiswarm_db"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  backend:
+    container_name: aiswarm-backend
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    restart: unless-stopped
+    networks:
+      - aiswarm_network
+    environment:
+      APP_ENV: development
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: swarm_user
+      DB_PASSWORD: swarm_pass_2026
+      DB_NAME: aiswarm_db
+      BACKEND_PORT: 8080
+      BASE_URL: http://localhost:8080
+      ADMIN_PASSWORD: swarm_admin_2026
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+  frontend:
+    container_name: aiswarm-frontend
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+    restart: unless-stopped
+    networks:
+      - aiswarm_network
+    environment:
+      APP_ENV: development
+      VITE_API_URL: http://localhost:8080
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+
+networks:
+  aiswarm_network:
+    name: aiswarm_network
+
+volumes:
+  aiswarm_pgdata: {}

@@ -1,0 +1,51 @@
+economics:
+  marketcreation:
+    initialMarketProbability: 0.5
+    initialMarketSubsidization: 10
+    initialMarketYes: 0
+    initialMarketNo: 0
+    minimumFutureHours: 1.0
+  marketincentives:
+    createMarketCost: 10
+    traderBonus: 1
+  user:
+    initialAccountBalance: 0
+    maximumDebtAllowed: 500
+  betting:
+    minimumBet: 1
+    maxDustPerSale: 2
+    betFees:
+      initialBetFee: 1
+      buySharesFee: 0
+      sellSharesFee: 0
+  # Pricing model configuration
+  pricing:
+    model: "lmsr"  # "wpam" (default) or "lmsr"
+    lmsr:
+      liquidityParameter: 100  # Higher = more stable prices, lower slippage
+      # Max loss for market maker = b * ln(2) ≈ 69.3 for b=100
+
+# AI Agent configuration
+agents:
+  enabled: true
+  initialBalance: 10000
+  minConfidence: 0.1  # Minimum confidence for betting
+  maxConfidence: 0.99 # Maximum confidence allowed
+  reputationDecay: 0.01  # Daily reputation decay for inactive agents
+  
+  # Swarm consensus settings
+  swarm:
+    weightingMethod: "reputation_confidence"  # How to weight agent votes
+    # Options: "equal", "reputation", "confidence", "reputation_confidence", "amount"
+    minAgentsForConsensus: 3  # Minimum agents needed for valid consensus
+    
+frontend:
+  charts:
+    sigFigs: 4
+  
+  # AI Swarm UI settings
+  swarm:
+    showReasoning: true      # Display agent reasoning in UI
+    showConfidence: true     # Show confidence bars
+    showReputation: true     # Show reputation scores
+    leaderboardLimit: 50     # Max agents on leaderboard
