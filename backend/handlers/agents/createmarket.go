@@ -118,6 +118,8 @@ func CreateMarketHandler(db *gorm.DB) http.HandlerFunc {
 		if findResult.Error != nil {
 			// Create user entry for agent if it doesn't exist
 			displayName := fmt.Sprintf("%s (AI)", agent.Name)
+			// Generate unique email for agent (won't be used)
+			agentEmail := fmt.Sprintf("%s@agent.binkaroni.ai", strings.ToLower(strings.ReplaceAll(agent.Name, " ", "-")))
 			
 			agentUser = models.User{
 				Username:           agentUsername,
@@ -128,6 +130,9 @@ func CreateMarketHandler(db *gorm.DB) http.HandlerFunc {
 				Description:        agent.Description,
 				MustChangePassword: false,
 			}
+			// Set PrivateUser fields (Email and Password are NOT NULL in schema)
+			agentUser.Email = agentEmail
+			agentUser.Password = "AGENT_NO_LOGIN" // Agents don't login with password
 			
 			createResult := tx.Create(&agentUser)
 			if createResult.Error != nil {
