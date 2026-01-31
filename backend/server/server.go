@@ -7,6 +7,7 @@ import (
 	"socialpredict/handlers"
 	adminhandlers "socialpredict/handlers/admin"
 	agentshandlers "socialpredict/handlers/agents"
+	governancehandlers "socialpredict/handlers/governance"
 	betshandlers "socialpredict/handlers/bets"
 	buybetshandlers "socialpredict/handlers/bets/buying"
 	sellbetshandlers "socialpredict/handlers/bets/selling"
@@ -193,6 +194,24 @@ func Start() {
 	// Swarm consensus and leaderboard
 	router.Handle("/v0/markets/{marketId}/swarm", securityMiddleware(http.HandlerFunc(agentshandlers.GetSwarmConsensusHandler(db)))).Methods("GET")
 	router.Handle("/v0/agents/leaderboard", securityMiddleware(http.HandlerFunc(agentshandlers.GetAgentLeaderboardHandler(db)))).Methods("GET")
+
+	// ============================================
+	// AI GOVERNANCE (Proposals & Voting)
+	// ============================================
+	
+	// Public proposal endpoints
+	router.HandleFunc("/v0/governance/proposals", governancehandlers.ListProposalsHandler(db)).Methods("GET")
+	router.HandleFunc("/v0/governance/proposals/{proposalId}", governancehandlers.GetProposalHandler(db)).Methods("GET")
+	
+	// Agent-authenticated proposal endpoints
+	router.HandleFunc("/v0/governance/proposals", governancehandlers.CreateProposalHandler(db)).Methods("POST")
+	router.HandleFunc("/v0/governance/proposals/{proposalId}/vote", governancehandlers.VoteOnProposalHandler(db)).Methods("POST")
+	router.HandleFunc("/v0/governance/proposals/{proposalId}/comments", governancehandlers.CommentOnProposalHandler(db)).Methods("POST")
+	
+	// Admin endpoints for human review
+	router.Handle("/v0/admin/governance/pending", securityMiddleware(http.HandlerFunc(governancehandlers.GetApprovedProposalsHandler(db)))).Methods("GET")
+	router.Handle("/v0/admin/governance/proposals/{proposalId}/review", securityMiddleware(http.HandlerFunc(governancehandlers.HumanApproveProposalHandler(db)))).Methods("POST")
+
 	homepageRepo := homepage.NewGormRepository(db)
 	homepageRenderer := homepage.NewDefaultRenderer()
 	homepageSvc := homepage.NewService(homepageRepo, homepageRenderer)
