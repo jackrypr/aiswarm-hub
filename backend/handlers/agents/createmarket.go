@@ -105,32 +105,24 @@ func CreateMarketHandler(db *gorm.DB) http.HandlerFunc {
 		agentUsername := fmt.Sprintf("agent:%s", agent.Name)
 
 		// Create agent user if not exists (needed for FK constraint)
+		// Use raw SQL to ensure it works
 		displayName := fmt.Sprintf("%s AI Agent", agent.Name)
 		agentEmail := fmt.Sprintf("agent-%d@binkaroni.local", agent.ID)
 		
-		agentUser := models.User{
-			Username:           agentUsername,
-			DisplayName:        displayName,
-			UserType:           "AGENT",
-			AccountBalance:     0,
-			PersonalEmoji:      "🤖",
-			Description:        agent.Description,
-			MustChangePassword: false,
-			Email:              agentEmail,
-			Password:           "AGENT_NO_PASSWORD_LOGIN",
-		}
+		// Insert user using raw SQL with ON CONFLICT DO NOTHING
+		insertSQL := `INSERT INTO users (username, displayname, user_type, email, password, account_balance, personal_emoji, must_change_password, created_at, updated_at) 
+			VALUES (?, ?, 'AGENT', ?, 'AGENT_NO_LOGIN', 0, '🤖', false, NOW(), NOW()) 
+			ON CONFLICT (username) DO NOTHING`
 		
-		// Use FirstOrCreate - creates if not exists, finds if exists
-		userResult := db.Where("username = ?", agentUsername).FirstOrCreate(&agentUser)
-		if userResult.Error != nil {
-			http.Error(w, fmt.Sprintf("Failed to ensure agent user exists: %s", userResult.Error.Error()), http.StatusInternalServerError)
+		if err := db.Exec(insertSQL, agentUsername, displayName, agentEmail).Error; err != nil {
+			http.Error(w, fmt.Sprintf("Failed to create agent user via SQL: %s", err.Error()), http.StatusInternalServerError)
 			return
 		}
 		
-		// Verify user was created/found
+		// Verify user exists
 		var verifyUser models.User
-		if db.Where("username = ?", agentUsername).First(&verifyUser).Error != nil {
-			http.Error(w, fmt.Sprintf("User verification failed for: %s", agentUsername), http.StatusInternalServerError)
+		if err := db.Where("username = ?", agentUsername).First(&verifyUser).Error; err != nil {
+			http.Error(w, fmt.Sprintf("User not found after insert: %s (username: %s)", err.Error(), agentUsername), http.StatusInternalServerError)
 			return
 		}
 
