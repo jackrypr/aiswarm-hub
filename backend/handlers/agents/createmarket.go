@@ -110,17 +110,25 @@ func CreateMarketHandler(db *gorm.DB) http.HandlerFunc {
 		if result.Error != nil {
 			// Create user entry for agent if it doesn't exist
 			agentUser = models.User{
-				Username:      agentUsername,
-				DisplayName:   agent.Name + " (AI Agent)",
-				UserType:      "AGENT",
+				Username:       agentUsername,
+				DisplayName:    agent.Name + " AI Agent",  // Simplified to avoid uniqueness issues
+				UserType:       "AGENT",
 				AccountBalance: 0,
-				PersonalEmoji: "🤖",
-				Description:   agent.Description,
+				PersonalEmoji:  "🤖",
+				Description:    agent.Description,
+				MustChangePassword: false, // Agents don't have passwords
 			}
 			if createErr := db.Create(&agentUser).Error; createErr != nil {
 				http.Error(w, "Failed to create agent user: "+createErr.Error(), http.StatusInternalServerError)
 				return
 			}
+		}
+		
+		// Double-check user was created
+		var checkUser models.User
+		if db.Where("username = ?", agentUsername).First(&checkUser).Error != nil {
+			http.Error(w, "User verification failed for: "+agentUsername, http.StatusInternalServerError)
+			return
 		}
 
 		// Create the market
