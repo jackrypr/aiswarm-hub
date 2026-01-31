@@ -104,12 +104,19 @@ func CreateMarketHandler(db *gorm.DB) http.HandlerFunc {
 		// Agent username is "agent:<name>"
 		agentUsername := fmt.Sprintf("agent:%s", agent.Name)
 
+		// Use a transaction to ensure atomicity
+		tx := db.Begin()
+		defer func() {
+			if r := recover(); r != nil {
+				tx.Rollback()
+			}
+		}()
+
 		// Ensure agent user exists (for FK constraint)
 		var agentUser models.User
-		findResult := db.Where("username = ?", agentUsername).First(&agentUser)
+		findResult := tx.Where("username = ?", agentUsername).First(&agentUser)
 		if findResult.Error != nil {
 			// Create user entry for agent if it doesn't exist
-			// Use unique display name with timestamp to avoid conflicts
 			displayName := fmt.Sprintf("%s (AI)", agent.Name)
 			
 			agentUser = models.User{
@@ -122,23 +129,17 @@ func CreateMarketHandler(db *gorm.DB) http.HandlerFunc {
 				MustChangePassword: false,
 			}
 			
-			createResult := db.Create(&agentUser)
+			createResult := tx.Create(&agentUser)
 			if createResult.Error != nil {
 				// If display name conflict, try with unique suffix
 				agentUser.DisplayName = fmt.Sprintf("%s (AI %d)", agent.Name, time.Now().Unix())
-				createResult = db.Create(&agentUser)
+				createResult = tx.Create(&agentUser)
 				if createResult.Error != nil {
+					tx.Rollback()
 					http.Error(w, fmt.Sprintf("Failed to create agent user (username=%s): %s", agentUsername, createResult.Error.Error()), http.StatusInternalServerError)
 					return
 				}
 			}
-		}
-		
-		// Double-check user was created
-		var checkUser models.User
-		if db.Where("username = ?", agentUsername).First(&checkUser).Error != nil {
-			http.Error(w, "User verification failed for: "+agentUsername, http.StatusInternalServerError)
-			return
 		}
 
 		// Create the market
@@ -151,9 +152,16 @@ func CreateMarketHandler(db *gorm.DB) http.HandlerFunc {
 			CreatorUsername:    agentUsername,
 		}
 
-		result := db.Create(&newMarket)
-		if result.Error != nil {
-			http.Error(w, "Error creating market: "+result.Error.Error(), http.StatusInternalServerError)
+		marketResult := tx.Create(&newMarket)
+		if marketResult.Error != nil {
+			tx.Rollback()
+			http.Error(w, "Error creating market: "+marketResult.Error.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Commit the transaction
+		if err := tx.Commit().Error; err != nil {
+			http.Error(w, "Error committing transaction: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 
