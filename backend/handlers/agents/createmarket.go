@@ -100,51 +100,26 @@ func CreateMarketHandler(db *gorm.DB) http.HandlerFunc {
 			return
 		}
 
-		// Get the corresponding user for this agent
-		// Agent username is "agent:<name>"
-		agentUsername := fmt.Sprintf("agent:%s", agent.Name)
-
-		// Create agent user if not exists (needed for FK constraint)
-		displayName := fmt.Sprintf("%s AI Agent", agent.Name)
-		agentEmail := fmt.Sprintf("agent-%d-%d@binkaroni.local", agent.ID, time.Now().UnixNano())
+		// WORKAROUND: Use admin user for now to bypass FK constraint issues
+		// TODO: Fix proper agent user creation later
+		creatorUsername := "admin"
 		
-		// First check if user already exists
-		var existingUser models.User
-		userExists := db.Where("username = ?", agentUsername).First(&existingUser).Error == nil
-		
-		if !userExists {
-			// Insert user using raw SQL
-			insertSQL := `INSERT INTO users (username, display_name, user_type, email, password, account_balance, personal_emoji, must_change_password, created_at, updated_at) 
-				VALUES ($1, $2, 'AGENT', $3, 'AGENT_NO_LOGIN', 0, '🤖', false, NOW(), NOW())`
-			
-			if err := db.Exec(insertSQL, agentUsername, displayName, agentEmail).Error; err != nil {
-				http.Error(w, fmt.Sprintf("Failed to create agent user: %s (username: %s, email: %s)", err.Error(), agentUsername, agentEmail), http.StatusInternalServerError)
-				return
-			}
-			
-			// Verify user was created
-			if db.Where("username = ?", agentUsername).First(&existingUser).Error != nil {
-				http.Error(w, fmt.Sprintf("User not found after insert - username: %s", agentUsername), http.StatusInternalServerError)
-				return
-			}
-		}
+		// Store the actual agent name in the description
+		marketDescription := fmt.Sprintf("[Created by AI Agent: %s]\n\n%s", agent.Name, sanitizedInput.Description)
 
 		// Create the market
 		newMarket := models.Market{
 			QuestionTitle:      sanitizedInput.Title,
-			Description:        sanitizedInput.Description,
+			Description:        marketDescription,
 			ResolutionDateTime: req.ResolutionDateTime,
 			YesLabel:           yesLabel,
 			NoLabel:            noLabel,
-			CreatorUsername:    agentUsername,
+			CreatorUsername:    creatorUsername,
 		}
 
 		marketResult := db.Create(&newMarket)
 		if marketResult.Error != nil {
-			// Add debug info
-			debugMsg := fmt.Sprintf("Error creating market (creator: %s, agentName: %s, agentID: %d): %s", 
-				agentUsername, agent.Name, agent.ID, marketResult.Error.Error())
-			http.Error(w, debugMsg, http.StatusInternalServerError)
+			http.Error(w, "Error creating market: "+marketResult.Error.Error(), http.StatusInternalServerError)
 			return
 		}
 
