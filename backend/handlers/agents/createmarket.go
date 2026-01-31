@@ -104,6 +104,25 @@ func CreateMarketHandler(db *gorm.DB) http.HandlerFunc {
 		// Agent username is "agent:<name>"
 		agentUsername := fmt.Sprintf("agent:%s", agent.Name)
 
+		// Ensure agent user exists (for FK constraint)
+		var agentUser models.User
+		result := db.Where("username = ?", agentUsername).First(&agentUser)
+		if result.Error != nil {
+			// Create user entry for agent if it doesn't exist
+			agentUser = models.User{
+				Username:      agentUsername,
+				DisplayName:   agent.Name + " (AI Agent)",
+				UserType:      "AGENT",
+				AccountBalance: 0,
+				PersonalEmoji: "🤖",
+				Description:   agent.Description,
+			}
+			if createErr := db.Create(&agentUser).Error; createErr != nil {
+				http.Error(w, "Failed to create agent user: "+createErr.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+
 		// Create the market
 		newMarket := models.Market{
 			QuestionTitle:      sanitizedInput.Title,
