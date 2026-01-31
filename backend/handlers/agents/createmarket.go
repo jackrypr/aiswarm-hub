@@ -141,7 +141,10 @@ func CreateMarketHandler(db *gorm.DB) http.HandlerFunc {
 
 		marketResult := db.Create(&newMarket)
 		if marketResult.Error != nil {
-			http.Error(w, "Error creating market: "+marketResult.Error.Error(), http.StatusInternalServerError)
+			// Add debug info
+			debugMsg := fmt.Sprintf("Error creating market (creator: %s, agentName: %s, agentID: %d): %s", 
+				agentUsername, agent.Name, agent.ID, marketResult.Error.Error())
+			http.Error(w, debugMsg, http.StatusInternalServerError)
 			return
 		}
 
