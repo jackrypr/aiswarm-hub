@@ -7,6 +7,7 @@ import (
 	"socialpredict/handlers"
 	adminhandlers "socialpredict/handlers/admin"
 	agentshandlers "socialpredict/handlers/agents"
+	predictionshandlers "socialpredict/handlers/predictions"
 	governancehandlers "socialpredict/handlers/governance"
 	betshandlers "socialpredict/handlers/bets"
 	buybetshandlers "socialpredict/handlers/bets/buying"
@@ -194,9 +195,38 @@ func Start() {
 	// Agent market creation (requires claimed agent)
 	router.Handle("/v0/agents/create", securityMiddleware(http.HandlerFunc(agentshandlers.CreateMarketHandler(db)))).Methods("POST")
 	
-	// Swarm consensus and leaderboard
+	// Swarm consensus and leaderboard (legacy)
 	router.Handle("/v0/markets/{marketId}/swarm", securityMiddleware(http.HandlerFunc(agentshandlers.GetSwarmConsensusHandler(db)))).Methods("GET")
 	router.Handle("/v0/agents/leaderboard", securityMiddleware(http.HandlerFunc(agentshandlers.GetAgentLeaderboardHandler(db)))).Methods("GET")
+
+	// ============================================
+	// KNOWLEDGE-BASED PREDICTION SYSTEM (NEW)
+	// Replaces balance-based betting with reputation scoring
+	// ============================================
+
+	// Make predictions (replaces /v0/agents/bet)
+	router.Handle("/v0/predict", securityMiddleware(http.HandlerFunc(predictionshandlers.MakePredictionHandler(db)))).Methods("POST")
+	router.Handle("/v0/prediction/{id}", securityMiddleware(http.HandlerFunc(predictionshandlers.GetPredictionHandler(db)))).Methods("GET")
+	router.Handle("/v0/prediction/{id}/vote", securityMiddleware(http.HandlerFunc(predictionshandlers.VotePredictionHandler(db)))).Methods("POST")
+	
+	// Agent predictions and stats
+	router.Handle("/v0/agent/{id}/predictions", securityMiddleware(http.HandlerFunc(predictionshandlers.GetAgentPredictionsHandler(db)))).Methods("GET")
+	router.Handle("/v0/agent/{id}/stats", securityMiddleware(http.HandlerFunc(predictionshandlers.GetAgentStatsHandler(db)))).Methods("GET")
+	
+	// Market predictions
+	router.Handle("/v0/market/{id}/predictions", securityMiddleware(http.HandlerFunc(predictionshandlers.GetMarketPredictionsHandler(db)))).Methods("GET")
+	
+	// Follow system
+	router.Handle("/v0/agent/{id}/follow", securityMiddleware(http.HandlerFunc(predictionshandlers.FollowAgentHandler(db)))).Methods("POST")
+	router.Handle("/v0/agent/{id}/follow", securityMiddleware(http.HandlerFunc(predictionshandlers.UnfollowAgentHandler(db)))).Methods("DELETE")
+	router.Handle("/v0/agent/{id}/followers", securityMiddleware(http.HandlerFunc(predictionshandlers.GetAgentFollowersHandler(db)))).Methods("GET")
+	router.Handle("/v0/agent/{id}/following", securityMiddleware(http.HandlerFunc(predictionshandlers.GetAgentFollowingHandler(db)))).Methods("GET")
+	
+	// New reputation-based leaderboard
+	router.Handle("/v0/leaderboard", securityMiddleware(http.HandlerFunc(predictionshandlers.LeaderboardHandler(db)))).Methods("GET")
+	
+	// Admin: Recalculate all scores
+	router.Handle("/v0/admin/recalculate-scores", securityMiddleware(http.HandlerFunc(predictionshandlers.RecalculateAllScoresHandler(db)))).Methods("POST")
 
 	// ============================================
 	// AI GOVERNANCE (Proposals & Voting)

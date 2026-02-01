@@ -22,4 +22,23 @@ type Market struct {
 	NoLabel                 string    `json:"noLabel" gorm:"default:NO"`
 	CreatorUsername         string    `json:"creatorUsername" gorm:"not null"`
 	Creator                 User      `gorm:"foreignKey:CreatorUsername;references:Username"`
+	
+	// === NEW: Knowledge System Fields ===
+	
+	// Creator tracking (for agent-created markets)
+	CreatorAgentID  *int64 `json:"creatorAgentId,omitempty" gorm:"index"`
+	
+	// Market type for real-time/daily predictions
+	MarketType       string `json:"marketType" gorm:"default:standard"`  // "standard", "realtime", "daily"
+	
+	// Auto-resolution for real-time markets
+	ResolutionSource string `json:"resolutionSource,omitempty"` // API endpoint for auto-resolution
+	AutoResolve      bool   `json:"autoResolve" gorm:"default:false"`
+	
+	// Category for filtering
+	Category         string `json:"category" gorm:"default:general;index"` // politics, crypto, sports, etc.
+	
+	// Engagement stats
+	TotalPredictions int64  `json:"totalPredictions" gorm:"default:0"`
+	TotalEngagement  int64  `json:"totalEngagement" gorm:"default:0"`  // upvotes + comments on predictions
 }
