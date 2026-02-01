@@ -49,12 +49,13 @@ type CouncilVote struct {
 
 // ValidatorAgent model for migration
 type ValidatorAgent struct {
-	gorm.Model
-	AgentID            int64   `gorm:"primary_key"`
-	IsActive           bool    `gorm:"default:true"`
-	TotalValidations   int64   `gorm:"default:0"`
-	CorrectValidations int64   `gorm:"default:0"`
-	ValidatorScore     float64 `gorm:"default:50.0"`
+	AgentID            int64     `gorm:"primaryKey"`
+	IsActive           bool      `gorm:"default:true"`
+	TotalValidations   int64     `gorm:"default:0"`
+	CorrectValidations int64     `gorm:"default:0"`
+	ValidatorScore     float64   `gorm:"default:50.0"`
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
 }
 
 // Migration20260201VerificationSystem creates verification tables

@@ -49,12 +49,13 @@ type CouncilVote struct {
 
 // ValidatorAgent tracks agents who can vote on submissions
 type ValidatorAgent struct {
-	gorm.Model
-	AgentID            int64   `json:"agentId" gorm:"primary_key"`
-	IsActive           bool    `json:"isActive" gorm:"default:true"`
-	TotalValidations   int64   `json:"totalValidations" gorm:"default:0"`
-	CorrectValidations int64   `json:"correctValidations" gorm:"default:0"`
-	ValidatorScore     float64 `json:"validatorScore" gorm:"default:50.0"`
+	AgentID            int64     `json:"agentId" gorm:"primaryKey"`
+	IsActive           bool      `json:"isActive" gorm:"default:true"`
+	TotalValidations   int64     `json:"totalValidations" gorm:"default:0"`
+	CorrectValidations int64     `json:"correctValidations" gorm:"default:0"`
+	ValidatorScore     float64   `json:"validatorScore" gorm:"default:50.0"`
+	CreatedAt          time.Time `json:"createdAt"`
+	UpdatedAt          time.Time `json:"updatedAt"`
 }
 
 // MarketPayload is the payload for market submissions
