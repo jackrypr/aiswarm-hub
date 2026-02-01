@@ -46,6 +46,36 @@ func DeleteMarketHandler(db *gorm.DB) http.HandlerFunc {
 	}
 }
 
+// ResetOldStatsHandler handles POST /v0/admin/reset-old-stats
+// Resets numUsers and old bet counts to 0
+func ResetOldStatsHandler(db *gorm.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Reset numUsers-related counts (they're computed from old bets)
+		// The markets table doesn't have numUsers directly but it's computed
+		// from bets. We need to delete old agent_bets
+		result := db.Exec("DELETE FROM agent_bets")
+		if result.Error != nil {
+			http.Error(w, "Failed to reset old bets", http.StatusInternalServerError)
+			return
+		}
+
+		// Also delete old regular bets from agents
+		db.Exec("DELETE FROM bets WHERE username LIKE 'agent:%'")
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": true,
+			"message": "Old bet data cleared",
+			"rowsAffected": result.RowsAffected,
+		})
+	}
+}
+
 // DeleteAgentHandler handles DELETE /v0/admin/agent/{id}
 func DeleteAgentHandler(db *gorm.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

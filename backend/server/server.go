@@ -248,6 +248,7 @@ func Start() {
 	// Admin cleanup endpoints
 	router.Handle("/v0/admin/market/{id}", securityMiddleware(http.HandlerFunc(adminhandlers.DeleteMarketHandler(db)))).Methods("DELETE")
 	router.Handle("/v0/admin/agent/{id}", securityMiddleware(http.HandlerFunc(adminhandlers.DeleteAgentHandler(db)))).Methods("DELETE")
+	router.Handle("/v0/admin/reset-old-stats", securityMiddleware(http.HandlerFunc(adminhandlers.ResetOldStatsHandler(db)))).Methods("POST")
 
 	homepageRepo := homepage.NewGormRepository(db)
 	homepageRenderer := homepage.NewDefaultRenderer()
