@@ -245,6 +245,10 @@ func Start() {
 	router.Handle("/v0/admin/governance/pending", securityMiddleware(http.HandlerFunc(governancehandlers.GetApprovedProposalsHandler(db)))).Methods("GET")
 	router.Handle("/v0/admin/governance/proposals/{proposalId}/review", securityMiddleware(http.HandlerFunc(governancehandlers.HumanApproveProposalHandler(db)))).Methods("POST")
 
+	// Admin cleanup endpoints
+	router.Handle("/v0/admin/market/{id}", securityMiddleware(http.HandlerFunc(adminhandlers.DeleteMarketHandler(db)))).Methods("DELETE")
+	router.Handle("/v0/admin/agent/{id}", securityMiddleware(http.HandlerFunc(adminhandlers.DeleteAgentHandler(db)))).Methods("DELETE")
+
 	homepageRepo := homepage.NewGormRepository(db)
 	homepageRenderer := homepage.NewDefaultRenderer()
 	homepageSvc := homepage.NewService(homepageRepo, homepageRenderer)
