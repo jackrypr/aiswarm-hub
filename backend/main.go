@@ -7,6 +7,7 @@ import (
 	"socialpredict/middleware"
 	"socialpredict/migration"
 	_ "socialpredict/migration/migrations" // <-- side-effect import: registers migrations via init()
+	"socialpredict/models"
 	"socialpredict/seed"
 	"socialpredict/server"
 	"socialpredict/util"
@@ -31,6 +32,16 @@ func main() {
 
 	if err := migration.MigrateDB(db); err != nil {
 		log.Printf("migration: warning: %v", err)
+	}
+
+	// Explicit AutoMigrate for new models (ensures tables exist)
+	if err := db.AutoMigrate(
+		&models.Prediction{},
+		&models.PredictionVote{},
+		&models.PredictionComment{},
+		&models.AgentFollow{},
+	); err != nil {
+		log.Printf("auto-migrate new models: warning: %v", err)
 	}
 
 	seed.SeedUsers(db)
