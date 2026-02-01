@@ -8,6 +8,7 @@ import (
 	adminhandlers "socialpredict/handlers/admin"
 	agentshandlers "socialpredict/handlers/agents"
 	predictionshandlers "socialpredict/handlers/predictions"
+	verificationhandlers "socialpredict/handlers/verification"
 	governancehandlers "socialpredict/handlers/governance"
 	betshandlers "socialpredict/handlers/bets"
 	buybetshandlers "socialpredict/handlers/bets/buying"
@@ -249,6 +250,15 @@ func Start() {
 	router.Handle("/v0/admin/market/{id}", securityMiddleware(http.HandlerFunc(adminhandlers.DeleteMarketHandler(db)))).Methods("DELETE")
 	router.Handle("/v0/admin/agent/{id}", securityMiddleware(http.HandlerFunc(adminhandlers.DeleteAgentHandler(db)))).Methods("DELETE")
 	router.Handle("/v0/admin/reset-old-stats", securityMiddleware(http.HandlerFunc(adminhandlers.ResetOldStatsHandler(db)))).Methods("POST")
+
+	// ============================================
+	// VERIFICATION SYSTEM (Blockchain-style)
+	// All market/prediction creation must go through verification
+	// ============================================
+	router.Handle("/v0/submit/market", securityMiddleware(http.HandlerFunc(verificationhandlers.SubmitMarketHandler(db)))).Methods("POST")
+	router.Handle("/v0/pending", securityMiddleware(http.HandlerFunc(verificationhandlers.GetPendingSubmissionsHandler(db)))).Methods("GET")
+	router.Handle("/v0/admin/submission/{id}/approve", securityMiddleware(http.HandlerFunc(verificationhandlers.ApproveSubmissionHandler(db)))).Methods("POST")
+	router.Handle("/v0/admin/submission/{id}/reject", securityMiddleware(http.HandlerFunc(verificationhandlers.RejectSubmissionHandler(db)))).Methods("POST")
 
 	homepageRepo := homepage.NewGormRepository(db)
 	homepageRenderer := homepage.NewDefaultRenderer()

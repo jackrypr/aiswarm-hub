@@ -8,6 +8,7 @@ import (
 	"socialpredict/migration"
 	_ "socialpredict/migration/migrations" // <-- side-effect import: registers migrations via init()
 	"socialpredict/models"
+	"socialpredict/handlers/verification"
 	"socialpredict/seed"
 	"socialpredict/server"
 	"socialpredict/util"
@@ -42,6 +43,13 @@ func main() {
 		&models.AgentFollow{},
 	); err != nil {
 		log.Printf("auto-migrate new models: warning: %v", err)
+	}
+
+	// AutoMigrate verification system tables
+	if err := db.AutoMigrate(
+		&verification.PendingSubmission{},
+	); err != nil {
+		log.Printf("auto-migrate verification models: warning: %v", err)
 	}
 
 	seed.SeedUsers(db)
