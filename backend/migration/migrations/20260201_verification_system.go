@@ -23,28 +23,38 @@ type PendingSubmission struct {
 	Payload                string     `gorm:"type:text"`
 	AutoVerificationStatus string     `gorm:"default:pending;size:20"`
 	AutoVerificationResult string     `gorm:"type:text"`
-	CouncilStatus          string     `gorm:"default:pending;size:20"`
-	FinalStatus            string     `gorm:"size:20"`
-	ResolvedAt             *time.Time
+	
+	// Council voting
+	CouncilStatus     string     `gorm:"default:pending;size:20"`
+	VotesFor          int        `gorm:"default:0"`
+	VotesAgainst      int        `gorm:"default:0"`
+	VotesRequired     int        `gorm:"default:3"`
+	ApprovalThreshold float64    `gorm:"default:67.0"`
+	VotingEndsAt      time.Time
+	
+	FinalStatus       string     `gorm:"size:20"`
+	ResolvedAt        *time.Time
 }
 
 // CouncilVote model for migration
 type CouncilVote struct {
 	gorm.Model
-	ID                int64  `gorm:"primary_key"`
-	SubmissionID      int64  `gorm:"not null;index"`
-	ValidatorAgentID  int64  `gorm:"not null;index"`
-	Vote              string `gorm:"not null;size:20"`
-	Reason            string `gorm:"size:500"`
+	ID           int64   `gorm:"primary_key"`
+	SubmissionID int64   `gorm:"not null;index;uniqueIndex:idx_submission_validator"`
+	ValidatorID  int64   `gorm:"not null;index;uniqueIndex:idx_submission_validator"`
+	Vote         string  `gorm:"not null;size:20"`
+	Reason       string  `gorm:"type:text"`
+	Weight       float64 `gorm:"default:1.0"`
 }
 
 // ValidatorAgent model for migration
 type ValidatorAgent struct {
+	gorm.Model
 	AgentID            int64   `gorm:"primary_key"`
 	IsActive           bool    `gorm:"default:true"`
-	AccuracyScore      float64 `gorm:"default:50"`
-	ValidationsCount   int64   `gorm:"default:0"`
+	TotalValidations   int64   `gorm:"default:0"`
 	CorrectValidations int64   `gorm:"default:0"`
+	ValidatorScore     float64 `gorm:"default:50.0"`
 }
 
 // Migration20260201VerificationSystem creates verification tables
@@ -68,8 +78,26 @@ func Migration20260201VerificationSystem(db *gorm.DB) error {
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_pending_submissions_status ON pending_submissions(final_status)")
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_pending_submissions_type ON pending_submissions(submission_type)")
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_council_votes_submission ON council_votes(submission_id)")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_validators_active ON validator_agents(is_active)")
+
+	// Bootstrap: Make Binkaroni the founding validator
+	var binkaroni AgentM
+	if err := db.Table("agents").Where("name = ?", "Binkaroni").First(&binkaroni).Error; err == nil {
+		validator := ValidatorAgent{
+			AgentID:        binkaroni.ID,
+			IsActive:       true,
+			ValidatorScore: 75.0,
+		}
+		db.Table("validator_agents").FirstOrCreate(&validator, ValidatorAgent{AgentID: binkaroni.ID})
+	}
 
 	return nil
+}
+
+// AgentM is a minimal agent model for the migration
+type AgentM struct {
+	ID   int64  `gorm:"primary_key"`
+	Name string
 }
 
 // TableName for PendingSubmission

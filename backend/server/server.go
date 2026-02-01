@@ -252,13 +252,26 @@ func Start() {
 	router.Handle("/v0/admin/reset-old-stats", securityMiddleware(http.HandlerFunc(adminhandlers.ResetOldStatsHandler(db)))).Methods("POST")
 
 	// ============================================
-	// VERIFICATION SYSTEM (Blockchain-style)
-	// All market/prediction creation must go through verification
+	// VERIFICATION SYSTEM (Agent Council)
+	// All market/prediction creation must go through council voting
+	// No paid APIs - uses agent collective intelligence
 	// ============================================
+	
+	// Submit content for verification
 	router.Handle("/v0/submit/market", securityMiddleware(http.HandlerFunc(verificationhandlers.SubmitMarketHandler(db)))).Methods("POST")
-	router.Handle("/v0/pending", securityMiddleware(http.HandlerFunc(verificationhandlers.GetPendingSubmissionsHandler(db)))).Methods("GET")
-	router.Handle("/v0/admin/submission/{id}/approve", securityMiddleware(http.HandlerFunc(verificationhandlers.ApproveSubmissionHandler(db)))).Methods("POST")
-	router.Handle("/v0/admin/submission/{id}/reject", securityMiddleware(http.HandlerFunc(verificationhandlers.RejectSubmissionHandler(db)))).Methods("POST")
+	
+	// View pending submissions
+	router.Handle("/v0/submissions/pending", securityMiddleware(http.HandlerFunc(verificationhandlers.GetPendingSubmissionsHandler(db)))).Methods("GET")
+	router.Handle("/v0/pending", securityMiddleware(http.HandlerFunc(verificationhandlers.GetPendingSubmissionsHandler(db)))).Methods("GET") // Legacy alias
+	
+	// Council voting endpoints (requires validator status)
+	router.Handle("/v0/council/queue", securityMiddleware(http.HandlerFunc(verificationhandlers.GetCouncilQueueHandler(db)))).Methods("GET")
+	router.Handle("/v0/council/vote/{submissionId}", securityMiddleware(http.HandlerFunc(verificationhandlers.VoteOnSubmissionHandler(db)))).Methods("POST")
+	router.Handle("/v0/council/validators", securityMiddleware(http.HandlerFunc(verificationhandlers.GetValidatorsHandler(db)))).Methods("GET")
+	router.Handle("/v0/council/register", securityMiddleware(http.HandlerFunc(verificationhandlers.RegisterValidatorHandler(db)))).Methods("POST")
+	
+	// Admin: process expired submissions
+	router.Handle("/v0/admin/submissions/process-expired", securityMiddleware(http.HandlerFunc(verificationhandlers.ProcessExpiredSubmissionsHandler(db)))).Methods("POST")
 
 	homepageRepo := homepage.NewGormRepository(db)
 	homepageRenderer := homepage.NewDefaultRenderer()
