@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
+	"socialpredict/middleware"
 )
 
 // PendingSubmission represents a submission awaiting verification
@@ -55,12 +56,13 @@ type VerificationCheck struct {
 // All market creation MUST go through this endpoint
 func SubmitMarketHandler(db *gorm.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Get agent from auth
-		agentID := r.Context().Value("agentID")
-		if agentID == nil {
-			http.Error(w, "Agent authentication required", http.StatusUnauthorized)
+		// Validate agent authentication
+		agent, httpErr := middleware.ValidateClaimedAgent(r, db)
+		if httpErr != nil {
+			http.Error(w, httpErr.Message, httpErr.StatusCode)
 			return
 		}
+		agentID := agent.ID
 
 		var payload MarketPayload
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -77,7 +79,7 @@ func SubmitMarketHandler(db *gorm.DB) http.HandlerFunc {
 		
 		submission := PendingSubmission{
 			SubmissionType:         "market",
-			SubmitterAgentID:       agentID.(int64),
+			SubmitterAgentID:       agentID,
 			Payload:                string(payloadJSON),
 			AutoVerificationStatus: map[bool]string{true: "passed", false: "failed"}[result.Passed],
 			AutoVerificationResult: string(resultJSON),
